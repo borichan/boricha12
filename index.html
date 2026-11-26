@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>언제 만나?</title>
+<style>
+  :root {
+    --bg: #f6f7fb; --card: #ffffff; --text: #1d2130; --sub: #6b7185; --line: #e3e6ef;
+    --accent: #4f6ef7; --accent-soft: #e5eaff; --busy: #ff6b6b; --busy-soft: #ffe3e3;
+    --ok: #22a06b; --ok-soft: #dcf5e9; --disabled: #c4c8d4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12141b; --card: #1c1f29; --text: #eceef5; --sub: #9aa0b4; --line: #2c303d;
+      --accent: #7b93ff; --accent-soft: #2a3260; --busy: #ff8585; --busy-soft: #4a2428;
+      --ok: #4cd394; --ok-soft: #1d4232; --disabled: #4a4f5e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    line-height: 1.5;
+  }
+  main { max-width: 480px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .lead { color: var(--sub); margin: 0 0 20px; font-size: .95rem; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-bottom: 16px; }
+  label { display: block; font-size: .85rem; color: var(--sub); margin-bottom: 6px; }
+  input[type=text] {
+    width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); font-size: 1rem;
+  }
+  input[type=text]:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  .field + .field { margin-top: 12px; }
+
+  .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .cal-head strong { font-size: 1.1rem; }
+  .nav { border: none; background: var(--bg); color: var(--text); width: 36px; height: 36px; border-radius: 50%; font-size: 1.1rem; cursor: pointer; }
+  .nav:disabled { opacity: .3; cursor: default; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .dow { text-align: center; font-size: .75rem; color: var(--sub); padding: 4px 0; }
+  .dow:first-child { color: var(--busy); }
+  .dow:last-child { color: var(--accent); }
+  .day {
+    aspect-ratio: 1; border: none; border-radius: 10px; background: transparent; color: var(--text);
+    font-size: .95rem; cursor: pointer; position: relative; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 0; font-family: inherit;
+  }
+  .day:hover:not(:disabled) { background: var(--bg); }
+  .day.today::after { content: ""; position: absolute; bottom: 5px; width: 4px; height: 4px; border-radius: 50%; background: var(--accent); }
+  .day:disabled { color: var(--disabled); cursor: default; }
+  .ro .day:disabled:not(.past) { color: var(--text); }
+  .day.busy { background: var(--busy-soft); color: var(--busy); font-weight: 600; }
+  .day.busy small { font-size: .55rem; line-height: 1; margin-top: 2px; max-width: 90%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .day.picked { background: var(--accent); color: #fff; font-weight: 700; }
+  .day.match { background: var(--ok); color: #fff; font-weight: 700; }
+  .empty { aspect-ratio: 1; }
+
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--sub); margin-top: 12px; }
+  .legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; background: var(--c); }
+
+  .list { list-style: none; padding: 0; margin: 0; }
+  .list li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .list li:last-child { border-bottom: none; }
+  .list .date { flex: 0 0 92px; font-weight: 600; font-size: .9rem; }
+  .list input { flex: 1; padding: 6px 10px; font-size: .9rem; }
+  .list .x { border: none; background: none; color: var(--sub); font-size: 1.1rem; cursor: pointer; }
+  .muted { color: var(--sub); font-size: .9rem; margin: 0; }
+  h2 { font-size: 1rem; margin: 0 0 10px; }
+
+  .btn {
+    display: block; width: 100%; padding: 14px; border: none; border-radius: 12px;
+    background: var(--accent); color: #fff; font-size: 1rem; font-weight: 700; cursor: pointer; font-family: inherit;
+  }
+  .btn.secondary { background: var(--accent-soft); color: var(--accent); margin-top: 8px; }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .share { margin-top: 12px; display: none; }
+  .share.show { display: block; }
+  .share input { font-size: .8rem; }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px);
+    background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-size: .9rem;
+    opacity: 0; transition: .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .result-badge { display: inline-block; background: var(--ok-soft); color: var(--ok); padding: 2px 10px; border-radius: 999px; font-size: .8rem; font-weight: 700; }
+  .link { background: none; border: none; color: var(--sub); text-decoration: underline; cursor: pointer; font-size: .85rem; margin-top: 12px; padding: 0; font-family: inherit; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  // ---------- 유틸 ----------
+  const pad = n => String(n).padStart(2, "0");
+  const key = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const todayKey = key(today.getFullYear(), today.getMonth(), today.getDate());
+  const DOW = ["일", "월", "화", "수", "목", "금", "토"];
+  const fmt = k => {
+    const [y, m, d] = k.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    return `${m}월 ${d}일 (${DOW[dt.getDay()]})`;
+  };
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // 한글이 들어간 JSON을 URL에 안전하게 담기 (base64url)
+  const encode = obj => {
+    const bytes = new TextEncoder().encode(JSON.stringify(obj));
+    let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b));
+    return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  };
+  const decode = str => {
+    try {
+      const b64 = str.replace(/-/g, "+").replace(/_/g, "/");
+      const bin = atob(b64);
+      return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0))));
+    } catch { return null; }
+  };
+
+  const toast = msg => {
+    const t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("show"), 1800);
+  };
+
+  const baseUrl = () => location.href.split("#")[0];
+
+  async function shareLink(url, title, text) {
+    if (navigator.share) {
+      try { await navigator.share({ title, text, url }); return; } catch (e) { if (e.name === "AbortError") return; }
+    }
+    await copy(url);
+  }
+  async function copy(text) {
+    try { await navigator.clipboard.writeText(text); toast("링크를 복사했어요"); }
+    catch { toast("아래 링크를 길게 눌러 복사하세요"); }
+  }
+
+  // ---------- 달력 컴포넌트 ----------
+  // opts: { busy: {dateKey: memo}, picked: Set, match: Set, onTap(key), disablePast, disableBusy }
+  function calendar(container, opts) {
+    let view = opts.start ? new Date(opts.start) : new Date(today);
+    view.setDate(1);
+    const minMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    function render() {
+      const y = view.getFullYear(), m = view.getMonth();
+      const first = new Date(y, m, 1).getDay();
+      const days = new Date(y, m + 1, 0).getDate();
+      let cells = DOW.map(d => `<div class="dow">${d}</div>`).join("");
+      for (let i = 0; i < first; i++) cells += `<div class="empty"></div>`;
+      for (let d = 1; d <= days; d++) {
+        const k = key(y, m, d);
+        const past = k < todayKey;
+        const isBusy = k in opts.busy;
+        const cls = ["day"];
+        if (k === todayKey) cls.push("today");
+        if (past) cls.push("past");
+        if (opts.match?.has(k)) cls.push("match");
+        else if (opts.picked?.has(k)) cls.push("picked");
+        else if (isBusy) cls.push("busy");
+        const disabled = (opts.disablePast && past) || (opts.disableBusy && isBusy) || !opts.onTap;
+        const memo = isBusy && opts.busy[k] && !opts.picked?.has(k) && !opts.match?.has(k)
+          ? `<small>${esc(opts.busy[k])}</small>` : "";
+        const title = isBusy ? `일정: ${opts.busy[k] || "있음"}` : "";
+        cells += `<button class="${cls.join(" ")}" data-k="${k}" ${disabled ? "disabled" : ""} title="${esc(title)}">${d}${memo}</button>`;
+      }
+      container.innerHTML = `
+        <div class="cal-head">
+          <button class="nav" data-nav="-1" aria-label="이전 달" ${view <= minMonth ? "disabled" : ""}>‹</button>
+          <strong>${y}년 ${m + 1}월</strong>
+          <button class="nav" data-nav="1" aria-label="다음 달">›</button>
+        </div>
+        <div class="grid${opts.onTap ? "" : " ro"}">${cells}</div>`;
+    }
+    container.addEventListener("click", e => {
+      const nav = e.target.closest("[data-nav]");
+      if (nav && !nav.disabled) { view.setMonth(view.getMonth() + Number(nav.dataset.nav)); render(); return; }
+      const day = e.target.closest(".day");
+      if (day && !day.disabled && opts.onTap) { opts.onTap(day.dataset.k); render(); }
+    });
+    render();
+    return { render };
+  }
+
+  const app = document.getElementById("app");
+
+  // ---------- 1) 내 일정 만들기 ----------
+  function hostView() {
+    const busy = {};
+    app.innerHTML = `
+      <h1>언제 만나? 📅</h1>
+      <p class="lead">내 일정이 있는 날을 표시하고 친구에게 링크를 보내세요. 친구가 일정 없는 날 중에서 만날 수 있는 날을 골라줄 거예요.</p>
+      <div class="card">
+        <div class="field"><label for="name">내 이름</label><input type="text" id="name" maxlength="20" placeholder="예: 보리"></div>
+        <div class="field"><label for="title">약속 이름 (선택)</label><input type="text" id="title" maxlength="40" placeholder="예: 연말 저녁 약속"></div>
+      </div>
+      <div class="card">
+        <h2>일정 있는 날 탭하기</h2>
+        <div id="cal"></div>
+        <div class="legend"><span style="--c:var(--busy)">일정 있음</span></div>
+      </div>
+      <div class="card">
+        <h2>내 일정 목록</h2>
+        <div id="list"></div>
+      </div>
+      <button class="btn" id="make">친구에게 보낼 링크 만들기</button>
+      <div class="share" id="share">
+        <input type="text" id="url" readonly>
+        <button class="btn secondary" id="copy">링크 복사</button>
+      </div>`;
+
+    const list = document.getElementById("list");
+    const renderList = () => {
+      const keys = Object.keys(busy).sort();
+      list.innerHTML = keys.length
+        ? `<ul class="list">${keys.map(k => `
+            <li><span class="date">${fmt(k)}</span>
+              <input type="text" data-memo="${k}" value="${esc(busy[k])}" maxlength="20" placeholder="메모 (예: 회식)">
+              <button class="x" data-del="${k}" aria-label="삭제">×</button></li>`).join("")}</ul>`
+        : `<p class="muted">달력에서 날짜를 누르면 여기에 추가돼요. 메모는 친구에게도 보여요.</p>`;
+      document.getElementById("share").classList.remove("show");
+    };
+    const cal = calendar(document.getElementById("cal"), {
+      busy, disablePast: true,
+      onTap: k => { if (k in busy) delete busy[k]; else busy[k] = ""; renderList(); }
+    });
+    list.addEventListener("input", e => {
+      const k = e.target.dataset.memo;
+      if (k) { busy[k] = e.target.value; cal.render(); document.getElementById("share").classList.remove("show"); }
+    });
+    list.addEventListener("click", e => {
+      const k = e.target.dataset.del;
+      if (k) { delete busy[k]; renderList(); cal.render(); }
+    });
+    renderList();
+
+    document.getElementById("make").addEventListener("click", () => {
+      const name = document.getElementById("name").value.trim();
+      if (!name) { toast("이름을 입력해 주세요"); document.getElementById("name").focus(); return; }
+      const data = { n: name, t: document.getElementById("title").value.trim(), b: busy, c: todayKey };
+      const url = `${baseUrl()}#s=${encode(data)}`;
+      document.getElementById("url").value = url;
+      document.getElementById("share").classList.add("show");
+      shareLink(url, "언제 만나?", `${name}님이 만날 날짜를 골라달래요!`);
+    });
+    document.getElementById("copy").addEventListener("click", () => copy(document.getElementById("url").value));
+  }
+
+  // ---------- 2) 친구가 날짜 고르기 ----------
+  function friendView(data, raw) {
+    const picked = new Set();
+    const busy = data.b || {};
+    app.innerHTML = `
+      <h1>${esc(data.n)}님과 언제 만날까요?</h1>
+      <p class="lead">${data.t ? `<b>${esc(data.t)}</b><br>` : ""}빨간 날은 ${esc(data.n)}님이 일정이 있는 날이에요. 나머지 날짜 중 만날 수 있는 날을 모두 골라주세요.</p>
+      <div class="card">
+        <div id="cal"></div>
+        <div class="legend"><span style="--c:var(--busy)">${esc(data.n)}님 일정</span><span style="--c:var(--accent)">내가 고른 날</span></div>
+      </div>
+      <div class="card">
+        <h2>고른 날짜</h2>
+        <div id="list"></div>
+      </div>
+      <div class="card">
+        <div class="field"><label for="name">내 이름</label><input type="text" id="name" maxlength="20" placeholder="예: 민지"></div>
+      </div>
+      <button class="btn" id="send" disabled>${esc(data.n)}님에게 답장 보내기</button>
+      <div class="share" id="share">
+        <input type="text" id="url" readonly>
+        <button class="btn secondary" id="copy">링크 복사</button>
+      </div>`;
+
+    const list = document.getElementById("list");
+    const renderList = () => {
+      const keys = [...picked].sort();
+      list.innerHTML = keys.length
+        ? `<ul class="list">${keys.map(k => `<li><span class="date">${fmt(k)}</span></li>`).join("")}</ul>`
+        : `<p class="muted">아직 고른 날짜가 없어요.</p>`;
+      document.getElementById("send").disabled = !keys.length;
+      document.getElementById("share").classList.remove("show");
+    };
+    calendar(document.getElementById("cal"), {
+      busy, picked, disablePast: true, disableBusy: true,
+      onTap: k => { picked.has(k) ? picked.delete(k) : picked.add(k); renderList(); }
+    });
+    renderList();
+
+    document.getElementById("send").addEventListener("click", () => {
+      const name = document.getElementById("name").value.trim();
+      if (!name) { toast("이름을 입력해 주세요"); document.getElementById("name").focus(); return; }
+      const url = `${baseUrl()}#s=${raw}&r=${encode({ n: name, p: [...picked].sort() })}`;
+      document.getElementById("url").value = url;
+      document.getElementById("share").classList.add("show");
+      shareLink(url, "언제 만나? - 답장", `${name}님이 만날 수 있는 날을 골랐어요!`);
+    });
+    document.getElementById("copy").addEventListener("click", () => copy(document.getElementById("url").value));
+  }
+
+  // ---------- 3) 답장 확인 ----------
+  function resultView(data, reply, raw) {
+    const busy = data.b || {};
+    const picks = (reply.p || []).filter(k => !(k in busy)).sort();
+    const match = new Set(picks);
+    const upcoming = picks.filter(k => k >= todayKey);
+    const [y, m] = (upcoming[0] || picks[0] || todayKey).split("-").map(Number);
+    app.innerHTML = `
+      <h1>${esc(reply.n)}님의 답장이 왔어요 💌</h1>
+      <p class="lead">${data.t ? `<b>${esc(data.t)}</b> · ` : ""}${esc(data.n)}님의 일정과 ${esc(reply.n)}님이 고른 날짜예요.</p>
+      <div class="card">
+        <div id="cal"></div>
+        <div class="legend"><span style="--c:var(--busy)">${esc(data.n)}님 일정</span><span style="--c:var(--ok)">만날 수 있는 날</span></div>
+      </div>
+      <div class="card">
+        <h2>만날 수 있는 날 <span class="result-badge">${picks.length}일</span></h2>
+        ${picks.length
+          ? `<ul class="list">${picks.map(k => `<li><span class="date" style="flex:1">${fmt(k)}</span>${k < todayKey ? `<span class="muted">지난 날짜</span>` : ""}</li>`).join("")}</ul>`
+          : `<p class="muted">겹치는 날짜가 없어요.</p>`}
+      </div>
+      <button class="btn secondary" id="again">다른 친구에게도 보내기 (같은 일정)</button>
+      <button class="link" id="new">새 달력 만들기</button>`;
+    calendar(document.getElementById("cal"), { busy, match, start: new Date(y, m - 1, 1) });
+    document.getElementById("again").addEventListener("click", () => shareLink(`${baseUrl()}#s=${raw}`, "언제 만나?", `${data.n}님이 만날 날짜를 골라달래요!`));
+    document.getElementById("new").addEventListener("click", () => { location.hash = ""; });
+  }
+
+  // ---------- 라우팅 ----------
+  function route() {
+    const params = new URLSearchParams(location.hash.slice(1));
+    const raw = params.get("s"), rawR = params.get("r");
+    const data = raw && decode(raw);
+    window.scrollTo(0, 0);
+    if (raw && !data) { app.innerHTML = `<h1>링크가 잘못됐어요 😢</h1><p class="lead">링크가 잘렸을 수 있어요. 전체 링크를 다시 받아주세요.</p><button class="btn" onclick="location.hash=''">새 달력 만들기</button>`; return; }
+    if (data && rawR) {
+      const reply = decode(rawR);
+      if (reply) return resultView(data, reply, raw);
+    }
+    if (data) return friendView(data, raw);
+    hostView();
+  }
+  window.addEventListener("hashchange", route);
+  route();
+})();
+</script>
+</body>
+</html>
